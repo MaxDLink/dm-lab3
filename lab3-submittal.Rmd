@@ -1,1 +1,13 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
 # Data Mining Lab 3 - Classification 
+
+---
+Title: Data Mining Lab 3
+Authors: Max Link, Logan Lu, Jadon Klipsch
+Date: "2025-04-14"
+Description: In this project, we will focus on classification 
+---
