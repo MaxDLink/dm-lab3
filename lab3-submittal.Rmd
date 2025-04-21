@@ -112,16 +112,106 @@ We can pick out two classes:
 
 1) High vs Low Infection Rate 
 
-Threshold of 0.1 (1,000 cases per 10,000 pop.).
+
 
 2) High vs Low Death Rate 
 
-Threshold of 0.023 (23 deaths per 10,000 pop.). 
 
 
-
+Now we can explore statistics to get proper thresholds
 
 ```{r}
+# 1) Explore distribution of infection_rate and death_rate
+# Summary statistics
+cat("Summary of Infection Rate:\n")
+summary(dataset$infection_rate)
+cat("\nSummary of Death Rate:\n")
+summary(dataset$death_rate)
 
+```
+The median is appropriate for both of these classification tasks because choosing the median balances our classes. Dealing with balanced classes means that we have a close 50-50 county split into high and low categories. This even split enables logistic regression, decision trees, SVMs. 
+
+The infection rate threshold should be 0.07212. 
+
+The death rate threshold should be 0.022603. 
+
+```{r}
+# Load required library (optional, for table creation)
+library(dplyr)
+
+# Read the dataset (update path as needed)
+dataset <- read.csv("tx_data_with_gr.csv", stringsAsFactors = FALSE)
+
+# Total number of counties
+total_counties <- nrow(dataset)
+
+# 1) High vs. Low Infection Rate (threshold: 0.1)
+# Count counties with infection_rate > 0.1 (High)
+high_infection <- sum(dataset$infection_rate > 0.07212, na.rm = TRUE)
+# Count counties with infection_rate <= 0.1 (Low)
+low_infection <- sum(dataset$infection_rate <= 0.07212, na.rm = TRUE)
+# Calculate percentages
+high_infection_pct <- (high_infection / total_counties) * 100
+low_infection_pct <- (low_infection / total_counties) * 100
+
+# 2) High vs. Low Death Rate (threshold: 0.023, updated from 0.0023)
+# Count counties with death_rate > 0.023 (High)
+high_death <- sum(dataset$death_rate > 0.022603, na.rm = TRUE)
+# Count counties with death_rate <= 0.023 (Low)
+low_death <- sum(dataset$death_rate <= 0.022603, na.rm = TRUE)
+# Calculate percentages
+high_death_pct <- (high_death / total_counties) * 100
+low_death_pct <- (low_death / total_counties) * 100
+
+# Print results
+cat("1) Infection Rate Classification (Threshold: 0.07212, i.e., 1,000 cases per 10,000 population)\n")
+cat("High Infection Rate (> 0.07212):", high_infection, "counties (", round(high_infection_pct, 2), "%)\n")
+cat("Low Infection Rate (<= 0.07212):", low_infection, "counties (", round(low_infection_pct, 2), "%)\n\n")
+
+cat("2) Death Rate Classification (Threshold: 0.022603, i.e., 230 deaths per 10,000 population)\n")
+cat("High Death Rate (> 0.022603):", high_death, "counties (", round(high_death_pct, 2), "%)\n")
+cat("Low Death Rate (<= 0.022603):", low_death, "counties (", round(low_death_pct, 2), "%)\n\n")
+
+```
+
+Now we can make our table with our class attributes for infection rate classification and death rate classification. 
+
+```{r}
+# Create class attributes for Infection Rate and Death Rate
+dataset <- dataset %>%
+  mutate(Infection_Rate_Class = ifelse(infection_rate > 0.07212, "High", "Low"),
+         Death_Rate_Class = ifelse(death_rate > 0.022603, "High", "Low"))
+
+# Select features for model learning, including both class attributes
+table_for_model <- dataset %>%
+  select(county_name, median_age, median_income, total_pop,
+         rate_of_growth_first_30_days, rate_of_growth_30_60_days,
+         rate_of_growth_60_90_days, rate_of_growth_90_120_days,
+         rate_of_growth_120_150_days, rate_of_growth_150_180_days,
+         Infection_Rate_Class, Death_Rate_Class)
+
+# Display first 10 rows
+cat("\nSingle Table with Infection_Rate_Class and Death_Rate_Class (First 10 Rows):\n")
+print(head(table_for_model, 10))
+
+# Verify class distributions
+# Infection Rate
+infection_dist <- table(dataset$Infection_Rate_Class)
+infection_prop <- prop.table(infection_dist)
+cat("\nInfection Rate Class Distribution:\n")
+print(infection_dist)
+cat("\nInfection Rate Class Proportions:\n")
+print(infection_prop)
+
+# Death Rate
+death_dist <- table(dataset$Death_Rate_Class)
+death_prop <- prop.table(death_dist)
+cat("\nDeath Rate Class Distribution:\n")
+print(death_dist)
+cat("\nDeath Rate Class Proportions:\n")
+print(death_prop)
+
+# Save the table
+write.csv(table_for_model, "tx_data_with_class.csv", row.names = FALSE)
 
 ```
