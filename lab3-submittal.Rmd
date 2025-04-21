@@ -369,5 +369,5 @@ cat("\nBest Model AUC-ROC:\n")
 print(auc(best_roc_obj))
 
 # Save the prepared data (optional, for reference)
-write.csv(model_data, "tx_data_prepared.csv", row.names = FALSE)
+# write.csv(model_data, "tx_data_prepared.csv", row.names = FALSE)
 ```
