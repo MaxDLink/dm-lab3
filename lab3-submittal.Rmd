@@ -1,9 +1,10 @@
 ---
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
-# Data Mining Lab 3 - Classification 
+
+# Data Mining Lab 3 - Classification
 
 ---
 Title: Data Mining Lab 3
@@ -11,3 +12,105 @@ Authors: Max Link, Logan Lu, Jadon Klipsch
 Date: "2025-04-14"
 Description: In this project, we will focus on classification 
 ---
+
+```{r setup, include=FALSE}
+# Disable RStudio's package update check for this session
+options("rstudio.package_manager.check_updates" = FALSE)
+
+# Set the CRAN repository
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+
+# Install packages quietly
+if (!requireNamespace("xfun", quietly = TRUE)) {
+  install.packages("xfun", quietly = TRUE)
+}
+if (!requireNamespace("ggrepel", quietly = TRUE)) {
+  install.packages("ggrepel", quietly = TRUE)
+}
+
+# Set knitr options
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load required libraries and suppress startup messages
+suppressPackageStartupMessages({
+  library(dplyr)      # For data manipulation
+  library(ggplot2)    # For visualizations
+  library(tidyr)      # For cleaning data
+  library(ggrepel)    # For repelling labels in plots
+})
+```
+
+```{r, results='hide', message=FALSE, warning=FALSE}
+# add packages to install here
+pkgs <- c("tidyverse", "factoextra", "cluster", "patchwork", "tibble", "ggrepel",
+          "mclust", "mcclust", "fpc", "seriation", "apcluster", "dbscan", "entropy", "maps", "kernlab", "skimr")
+pkgs_install <- pkgs[!(pkgs %in% installed.packages()[,"Package"])]
+if(length(pkgs_install)) install.packages(pkgs_install)
+
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(readr))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(knitr))
+suppressPackageStartupMessages(library(tibble))
+suppressPackageStartupMessages(library(mclust))
+suppressPackageStartupMessages(library(mcclust))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(ggrepel))
+suppressPackageStartupMessages(library(cluster))
+suppressPackageStartupMessages(library(patchwork))
+suppressPackageStartupMessages(library(factoextra))
+suppressPackageStartupMessages(library(fpc))
+suppressPackageStartupMessages(library(seriation))
+suppressPackageStartupMessages(library(apcluster))
+suppressPackageStartupMessages(library(dbscan))
+suppressPackageStartupMessages(library(entropy))
+suppressPackageStartupMessages(library(maps))
+suppressPackageStartupMessages(library(skimr))
+``` 
+
+```{r, results='hide', message=FALSE, warning=FALSE}
+
+
+# Load libraries
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(tibble)
+library(mclust)
+library(mcclust)
+library(ggplot2)
+library(ggrepel)
+library(cluster)
+library(patchwork)
+library(factoextra)
+library(fpc)
+library(seriation)
+library(apcluster)
+library(dbscan)
+library(entropy)
+library(maps)
+library(skimr)
+
+
+```
+
+```{r}
+
+dataset <- read.csv("tx_data_with_gr.csv")
+
+# print(dataset)
+```
+
+### Section 1 -- Data Prep
+
+First, we need to define our classes.
+
+
+
+```{r}
+
+
+```
