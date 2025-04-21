@@ -43,7 +43,7 @@ suppressPackageStartupMessages({
 ```{r, results='hide', message=FALSE, warning=FALSE}
 # add packages to install here
 pkgs <- c("tidyverse", "factoextra", "cluster", "patchwork", "tibble", "ggrepel",
-          "mclust", "mcclust", "fpc", "seriation", "apcluster", "dbscan", "entropy", "maps", "kernlab", "skimr")
+          "mclust", "mcclust", "fpc", "seriation", "apcluster", "dbscan", "entropy", "maps", "kernlab", "skimr", "caret", "randomForest", "pROC", "cli")
 pkgs_install <- pkgs[!(pkgs %in% installed.packages()[,"Package"])]
 if(length(pkgs_install)) install.packages(pkgs_install)
 
@@ -67,6 +67,11 @@ suppressPackageStartupMessages(library(dbscan))
 suppressPackageStartupMessages(library(entropy))
 suppressPackageStartupMessages(library(maps))
 suppressPackageStartupMessages(library(skimr))
+suppressPackageStartupMessages(library(caret))
+suppressPackageStartupMessages(library(randomForest))
+suppressPackageStartupMessages(library(pROC))
+suppressPackageStartupMessages(library(cli))
+
 ``` 
 
 ```{r, results='hide', message=FALSE, warning=FALSE}
@@ -184,10 +189,7 @@ dataset <- dataset %>%
 
 # Select features for model learning, including both class attributes
 table_for_model <- dataset %>%
-  select(county_name, median_age, median_income, total_pop,
-         rate_of_growth_first_30_days, rate_of_growth_30_60_days,
-         rate_of_growth_60_90_days, rate_of_growth_90_120_days,
-         rate_of_growth_120_150_days, rate_of_growth_150_180_days,
+  select(county_name, median_age, median_income, total_pop, death_rate, infection_rate,
          Infection_Rate_Class, Death_Rate_Class)
 
 # Display first 10 rows
@@ -223,3 +225,125 @@ Our predictive features are:
 2) median income 
 
 3) total population 
+
+
+```{r}
+# Load required libraries
+library(dplyr)
+library(caret)
+library(randomForest)
+library(pROC)
+
+# Select features and class attribute (focusing on Infection_Rate_Class)
+model_data <- dataset %>%
+  select(median_age, median_income, total_pop, Infection_Rate_Class, infection_rate)
+
+# Check for missing values
+cat("\nMissing Values:\n")
+print(colSums(is.na(model_data)))
+
+# Handle missing values (impute with median if any)
+model_data <- model_data %>%
+  mutate(
+    median_age = ifelse(is.na(median_age), median(median_age, na.rm = TRUE), median_age),
+    median_income = ifelse(is.na(median_income), median(median_income, na.rm = TRUE), median_income),
+    total_pop = ifelse(is.na(total_pop), median(total_pop, na.rm = TRUE), total_pop)
+  )
+
+# Scale numerical features (standardize to mean = 0, sd = 1)
+model_data <- model_data %>%
+  mutate(
+    median_age = scale(median_age),
+    median_income = scale(median_income),
+    total_pop = scale(total_pop)
+  )
+
+# Train-test split (80% train, 20% test, stratified)
+set.seed(123) # For reproducibility
+train_index <- createDataPartition(model_data$Infection_Rate_Class, p = 0.8, list = FALSE)
+train_data <- model_data[train_index, ]
+test_data <- model_data[-train_index, ]
+
+# Verify class distribution in train and test sets
+cat("\nTraining Set Class Distribution:\n")
+print(table(train_data$Infection_Rate_Class))
+cat("\nTesting Set Class Distribution:\n")
+print(table(test_data$Infection_Rate_Class))
+
+# Step 2: Training and Testing
+# Train Random Forest model
+
+model_data <- model_data %>%
+  mutate(
+    Infection_Rate_Class = factor(ifelse(infection_rate > 0.07212, "High", "Low"))
+  )
+
+rf_model <- randomForest(Infection_Rate_Class ~ median_age + median_income + total_pop,
+                         data = train_data, ntree = 500)
+
+# Predict on test set
+predictions <- predict(rf_model, test_data)
+prob_predictions <- predict(rf_model, test_data, type = "prob")[, "High"]
+
+# Evaluate model performance
+conf_matrix <- confusionMatrix(predictions, test_data$Infection_Rate_Class)
+cat("\nConfusion Matrix and Metrics:\n")
+print(conf_matrix)
+
+# Calculate AUC-ROC
+roc_obj <- roc(test_data$Infection_Rate_Class, prob_predictions)
+cat("\nAUC-ROC:\n")
+print(auc(roc_obj))
+
+# Step 3: Hyperparameter Tuning
+# Define hyperparameter grid
+tune_grid <- expand.grid(
+  mtry = c(1, 2, 3), # Number of features at each split
+  ntree = c(100, 500, 1000) # Number of trees
+)
+
+# Custom trainControl for cross-validation
+ctrl <- trainControl(
+  method = "cv",
+  number = 5, # 5-fold cross-validation
+  summaryFunction = twoClassSummary, # For ROC, sensitivity, specificity
+  classProbs = TRUE,
+  savePredictions = TRUE
+)
+
+# Tune Random Forest using caret
+set.seed(123)
+rf_tuned <- train(
+  Infection_Rate_Class ~ median_age + median_income + total_pop,
+  data = train_data,
+  method = "rf",
+  trControl = ctrl,
+  tuneGrid = tune_grid,
+  metric = "ROC"
+)
+
+# Print tuning results
+cat("\nHyperparameter Tuning Results:\n")
+print(rf_tuned)
+
+# Best model
+best_model <- rf_tuned$finalModel
+
+# Evaluate best model on test set
+best_predictions <- predict(best_model, test_data)
+best_prob_predictions <- predict(best_model, test_data, type = "prob")[, "High"]
+
+# Confusion matrix for best model
+best_conf_matrix <- confusionMatrix(best_predictions, test_data$Infection_Rate_Class)
+cat("\nBest Model Confusion Matrix and Metrics:\n")
+print(best_conf_matrix)
+
+# AUC-ROC for best model
+best_roc_obj <- roc(test_data$Infection_Rate_Class, best_prob_predictions)
+cat("\nBest Model AUC-ROC:\n")
+print(auc(best_roc_obj))
+
+# Save the final table (optional, for reference)
+# write.csv(model_data, "tx_data_prepared.csv", row.names = FALSE)
+
+```
