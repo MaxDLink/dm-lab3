@@ -215,3 +215,11 @@ print(death_prop)
 write.csv(table_for_model, "tx_data_with_class.csv", row.names = FALSE)
 
 ```
+
+Our predictive features are: 
+
+1) median age 
+
+2) median income 
+
+3) total population 
