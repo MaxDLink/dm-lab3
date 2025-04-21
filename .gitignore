@@ -2,3 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
+tx_data_prepared.csv
+tx_data_with_class.csv
+tx_data_with_infection_class.csv
