@@ -227,6 +227,8 @@ Our predictive features are:
 3) total population 
 
 
+### Section 2 -- Modeling 
+
 ```{r}
 # Load required libraries
 library(dplyr)
@@ -234,9 +236,40 @@ library(caret)
 library(randomForest)
 library(pROC)
 
+# Read the dataset (update path as needed)
+dataset <- read.csv("tx_data_with_gr.csv", stringsAsFactors = FALSE)
+
+# Step 1: Verify dataset structure
+cat("\nColumn names in dataset:\n")
+print(names(dataset))
+cat("\nNumber of counties in dataset:", nrow(dataset), "\n")
+cat("\nSummary of infection_rate:\n")
+print(summary(dataset$infection_rate))
+cat("\nSummary of death_rate:\n")
+print(summary(dataset$death_rate))
+
+# Check if required columns exist
+if (!all(c("infection_rate", "death_rate", "median_age", "median_income", "total_pop") %in% names(dataset))) {
+  stop("Required columns (infection_rate, death_rate, median_age, median_income, total_pop) not found in dataset.")
+}
+
+# Step 2: Data Preparation
+# Create class attributes and ensure they are factors
+dataset <- dataset %>%
+  mutate(
+    Infection_Rate_Class = factor(ifelse(infection_rate > 0.07212, "High", "Low"), levels = c("Low", "High")),
+    Death_Rate_Class = factor(ifelse(death_rate > 0.022603, "High", "Low"), levels = c("Low", "High"))
+  )
+
+# Check unique values and distribution in Infection_Rate_Class
+cat("\nUnique values in Infection_Rate_Class:\n")
+print(unique(dataset$Infection_Rate_Class))
+cat("\nClass distribution:\n")
+print(table(dataset$Infection_Rate_Class))
+
 # Select features and class attribute (focusing on Infection_Rate_Class)
 model_data <- dataset %>%
-  select(median_age, median_income, total_pop, Infection_Rate_Class, infection_rate)
+  select(median_age, median_income, total_pop, Infection_Rate_Class)
 
 # Check for missing values
 cat("\nMissing Values:\n")
@@ -270,14 +303,8 @@ print(table(train_data$Infection_Rate_Class))
 cat("\nTesting Set Class Distribution:\n")
 print(table(test_data$Infection_Rate_Class))
 
-# Step 2: Training and Testing
+# Step 3: Training and Testing
 # Train Random Forest model
-
-model_data <- model_data %>%
-  mutate(
-    Infection_Rate_Class = factor(ifelse(infection_rate > 0.07212, "High", "Low"))
-  )
-
 rf_model <- randomForest(Infection_Rate_Class ~ median_age + median_income + total_pop,
                          data = train_data, ntree = 500)
 
@@ -295,12 +322,9 @@ roc_obj <- roc(test_data$Infection_Rate_Class, prob_predictions)
 cat("\nAUC-ROC:\n")
 print(auc(roc_obj))
 
-# Step 3: Hyperparameter Tuning
-# Define hyperparameter grid
-tune_grid <- expand.grid(
-  mtry = c(1, 2, 3), # Number of features at each split
-  ntree = c(100, 500, 1000) # Number of trees
-)
+# Step 4: Hyperparameter Tuning
+# Define hyperparameter grid (only mtry for caret's rf method)
+tune_grid <- expand.grid(mtry = c(1, 2, 3))
 
 # Custom trainControl for cross-validation
 ctrl <- trainControl(
@@ -319,7 +343,8 @@ rf_tuned <- train(
   method = "rf",
   trControl = ctrl,
   tuneGrid = tune_grid,
-  metric = "ROC"
+  metric = "ROC",
+  ntree = 500 # Set ntree directly instead of tuning
 )
 
 # Print tuning results
@@ -343,7 +368,6 @@ best_roc_obj <- roc(test_data$Infection_Rate_Class, best_prob_predictions)
 cat("\nBest Model AUC-ROC:\n")
 print(auc(best_roc_obj))
 
-# Save the final table (optional, for reference)
-# write.csv(model_data, "tx_data_prepared.csv", row.names = FALSE)
-
+# Save the prepared data (optional, for reference)
+write.csv(model_data, "tx_data_prepared.csv", row.names = FALSE)
 ```
