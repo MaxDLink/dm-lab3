@@ -241,15 +241,6 @@ library(pROC)
 ```{r} 
 # Dataset loading and verification 
 
-# Step 1: Verify dataset structure
-cat("\nColumn names in dataset:\n")
-print(names(dataset))
-cat("\nNumber of counties in dataset:", nrow(dataset), "\n")
-cat("\nSummary of infection_rate:\n")
-print(summary(dataset$infection_rate))
-cat("\nSummary of death_rate:\n")
-print(summary(dataset$death_rate))
-
 # Check if required columns exist
 if (!all(c("infection_rate", "death_rate", "median_age", "median_income", "total_pop") %in% names(dataset))) {
   stop("Required columns (infection_rate, death_rate, median_age, median_income, total_pop) not found in dataset.")
@@ -266,14 +257,11 @@ dataset <- dataset %>%
     Death_Rate_Class = factor(ifelse(death_rate > 0.022603, "High", "Low"), levels = c("Low", "High"))
   )
 
-# Check unique values and distribution in Infection_Rate_Class
-cat("\nUnique values in Infection_Rate_Class:\n")
-print(unique(dataset$Infection_Rate_Class))
-cat("\nClass distribution:\n")
+# Check class distribution
+cat("Class distribution for Infection_Rate_Class:\n")
 print(table(dataset$Infection_Rate_Class))
 
-# Select features and class attribute (focusing on Infection_Rate_Class)
-# Exclude infection rate to prevent data leakage 
+# Select features and class attribute
 model_data <- dataset %>%
   select(median_age, median_income, total_pop, Infection_Rate_Class)
 
@@ -289,7 +277,7 @@ model_data <- model_data %>%
     total_pop = ifelse(is.na(total_pop), median(total_pop, na.rm = TRUE), total_pop)
   )
 
-# Scale numerical features (standardize to mean = 0, sd = 1)
+# Scale numerical features
 model_data <- model_data %>%
   mutate(
     median_age = scale(median_age),
@@ -298,93 +286,165 @@ model_data <- model_data %>%
   )
 
 # Train-test split (80% train, 20% test, stratified)
-set.seed(123) # For reproducibility
+set.seed(123)
 train_index <- createDataPartition(model_data$Infection_Rate_Class, p = 0.8, list = FALSE)
 train_data <- model_data[train_index, ]
 test_data <- model_data[-train_index, ]
 
 # Verify class distribution in train and test sets
-cat("\nTraining Set Class Distribution:\n")
+cat("Training Set Class Distribution:\n")
 print(table(train_data$Infection_Rate_Class))
-cat("\nTesting Set Class Distribution:\n")
+cat("Testing Set Class Distribution:\n")
 print(table(test_data$Infection_Rate_Class))
 
 ```
 
+We can use Random Forest as our model because we want to classify 213 counties, which is a small sample size. Random Forest is appropriate for its ability to handle non-linear relationships, and prevent over-fitting.
+
 
 ```{r}
 
-# Step 3: Training and Testing
-# Train Random Forest model
-rf_model <- randomForest(Infection_Rate_Class ~ median_age + median_income + total_pop,
-                         data = train_data, ntree = 500)
-
-# Predict on test set
-predictions <- predict(rf_model, test_data)
-prob_predictions <- predict(rf_model, test_data, type = "prob")[, "High"]
-
-# Evaluate model performance
-conf_matrix <- confusionMatrix(predictions, test_data$Infection_Rate_Class)
-cat("\nConfusion Matrix and Metrics:\n")
-print(conf_matrix)
-
-# Calculate AUC-ROC
-roc_obj <- roc(test_data$Infection_Rate_Class, prob_predictions)
-cat("\nAUC-ROC:\n")
-print(auc(roc_obj))
-
-
-```
-
-```{r}
-# Step 4: Hyperparameter Tuning
-# Define hyperparameter grid (only mtry for caret's rf method)
-tune_grid <- expand.grid(mtry = c(1, 2, 3))
-
-# Custom trainControl for cross-validation
+# Step 3: Train and Assess Random Forest
+# Define train Control for cross-validation
 ctrl <- trainControl(
   method = "cv",
-  number = 5, # 5-fold cross-validation
-  summaryFunction = twoClassSummary, # For ROC, sensitivity, specificity
+  number = 5, # number of cross validation folds 
+  summaryFunction = twoClassSummary,
   classProbs = TRUE,
   savePredictions = TRUE
-)
+) 
 
-# Tune Random Forest using caret
+# Train Random Forest with tuning
 set.seed(123)
 rf_tuned <- train(
   Infection_Rate_Class ~ median_age + median_income + total_pop,
   data = train_data,
   method = "rf",
   trControl = ctrl,
-  tuneGrid = tune_grid,
+  tuneGrid = expand.grid(mtry = c(1, 2, 3)),
   metric = "ROC",
-  ntree = 500 # Set ntree directly instead of tuning
+  ntree = 500 # use 500 trees 
 )
 
-# Print tuning results
-cat("\nHyperparameter Tuning Results:\n")
-print(rf_tuned)
-
-# Best model
+# Extract best model
 best_model <- rf_tuned$finalModel
 
-# Evaluate best model on test set
-best_predictions <- predict(best_model, test_data)
-best_prob_predictions <- predict(best_model, test_data, type = "prob")[, "High"]
+# Cross-Validation Performance
+cat("\nRandom Forest Cross-Validation Results:\n")
+print(rf_tuned$results)
 
-# Confusion matrix for best model
-best_conf_matrix <- confusionMatrix(best_predictions, test_data$Infection_Rate_Class)
-cat("\nBest Model Confusion Matrix and Metrics:\n")
-print(best_conf_matrix)
+# Test Set Performance
+rf_test_predictions <- predict(best_model, test_data)
+rf_test_prob_predictions <- predict(best_model, test_data, type = "prob")[, "High"]
+rf_test_conf_matrix <- confusionMatrix(rf_test_predictions, test_data$Infection_Rate_Class)
+rf_test_roc_obj <- roc(test_data$Infection_Rate_Class, rf_test_prob_predictions)
+cat("\nRandom Forest Test Set Confusion Matrix and Metrics:\n")
+print(rf_test_conf_matrix)
+cat("Random Forest Test Set AUC-ROC:\n")
+print(auc(rf_test_roc_obj))
 
-# AUC-ROC for best model
-best_roc_obj <- roc(test_data$Infection_Rate_Class, best_prob_predictions)
-cat("\nBest Model AUC-ROC:\n")
-print(auc(best_roc_obj))
-
-# Save the prepared data (optional, for reference)
-# write.csv(model_data, "tx_data_prepared.csv", row.names = FALSE)
+# Training Set Performance
+rf_train_predictions <- predict(best_model, train_data)
+rf_train_conf_matrix <- confusionMatrix(rf_train_predictions, train_data$Infection_Rate_Class)
+cat("\nRandom Forest Training Set Confusion Matrix and Metrics:\n")
+print(rf_train_conf_matrix)
 
 
 ```
+
+Our Accuracy is significantly better than random guessing with 71%, so Random Forest does have predictive power. However, Random Forest misclassifies 6 low counties as high counties and 6 high counties as low counties, which is a 28.57% error rate per class (6/21). This is substantial for a small test set of only 42 samples. In a public health context, this could have severe consequences like misallocating resources. 
+
+Looking at the training Accuracy, we see that Random Forest has classified the training set perfectly with an accuracy of 1. This means that Random Forest has fully memorized the training set. This makes sense because random forest has extreme flexibility and the data has a small feature set (only 3 features), however the accuracy drop off of 71% for the testing set suggests severe data overfitting. This demonstrates Random Forest's ability to fit data, but raises concerns about overfitting data. This suggests that Random Forest may be too complex for this dataset and that simpler models like linear regression may perform better. 
+
+This is backed up by the Kappa, which reads only 42%. This means that the model is only moderately above classifying by chance. 
+
+A 95% Confidence Interval (CI) is wide, which means there is uncertainty about the test set. 
+
+The p-value of 1.0 means there is no significant difference between errors in test sets, reflecting the balanced misclassification of 6 counties per test set. 
+
+We have cross validation performance and training set performance with a confusion matrix/metrics. Looking at the cross validation results, we see the Mtry values ranging from 1 to 3. Mtry specifies the number of features that are used to determine the best split at a node. We have three predictors, so Mtry can be 1 (median age), 2 (median age, median income), or 3 (median age, median income, total population).
+
+
+Mtry equal to 2 has the highest ROC score. Having an ROC (ability to discriminate between high and low classes) around 0.67 is moderate. An ROC of 0.67 is moderate because it is below 0.70, which means that total population, median age, and median income are not strong predictors of infection rate. 
+
+The sens (sensitivity) reading identifies the positive class, which in this case is low. About 55% is low which means the random forest model struggles to identify low infection rate counties. 
+
+Specificity is the proportion of high cases correctly identified. About 66% is moderate, which means our random forest model misses many high case counties in its classification. 
+
+The standard deviations (ROCSD, SensSD, SpecSD) show variability across Cross validation folds. mtry 2 has ROCD of 0.0656 which suggests moderate variability in performance. This is most likely from our small dataset of only 171 counties in our training set. 
+
+
+Random Forest may not capture linear relationships as well as linear regression or interactions as well as SVM, so now we can try those. 
+
+```{r}
+# Model 2: Logistic Regression
+lr_model <- train(
+  Infection_Rate_Class ~ median_age + median_income + total_pop,
+  data = train_data,
+  method = "glm",
+  family = "binomial",
+  trControl = ctrl,
+  metric = "ROC"
+)
+lr_predictions <- predict(lr_model, test_data)
+lr_prob_predictions <- predict(lr_model, test_data, type = "prob")[, "High"]
+lr_conf_matrix <- confusionMatrix(lr_predictions, test_data$Infection_Rate_Class)
+lr_roc_obj <- roc(test_data$Infection_Rate_Class, lr_prob_predictions)
+cat("\nLogistic Regression Confusion Matrix and Metrics:\n")
+print(lr_conf_matrix)
+cat("\nLogistic Regression AUC-ROC:\n")
+print(auc(lr_roc_obj))
+cat("\nLogistic Regression CV Results:\n")
+print(lr_model$results)
+
+# Logistic Regression Training Performance
+lr_train_predictions <- predict(lr_model, train_data)
+lr_train_conf_matrix <- confusionMatrix(lr_train_predictions, train_data$Infection_Rate_Class)
+cat("\nLogistic Regression Training Confusion Matrix:\n")
+print(lr_train_conf_matrix)
+
+```
+
+```{r}
+
+# Model 3: SVM with Radial Kernel
+svm_model <- train(
+  Infection_Rate_Class ~ median_age + median_income + total_pop,
+  data = train_data,
+  method = "svmRadial",
+  trControl = ctrl,
+  tuneGrid = expand.grid(sigma = c(0.1, 0.5, 1), C = c(0.1, 1, 10)),
+  metric = "ROC"
+)
+svm_predictions <- predict(svm_model, test_data)
+svm_prob_predictions <- predict(svm_model, test_data, type = "prob")[, "High"]
+svm_conf_matrix <- confusionMatrix(svm_predictions, test_data$Infection_Rate_Class)
+svm_roc_obj <- roc(test_data$Infection_Rate_Class, svm_prob_predictions)
+cat("\nSVM Confusion Matrix and Metrics:\n")
+print(svm_conf_matrix)
+cat("\nSVM AUC-ROC:\n")
+print(auc(svm_roc_obj))
+cat("\nSVM CV Results:\n")
+print(svm_model$results) 
+
+# SVM Training Performance
+svm_train_predictions <- predict(svm_model, train_data)
+svm_train_conf_matrix <- confusionMatrix(svm_train_predictions, train_data$Infection_Rate_Class)
+cat("\nSVM Training Confusion Matrix:\n")
+print(svm_train_conf_matrix)
+```
+
+```{r}
+# Step 4: Compare Models
+results <- data.frame(
+  Model = c("Random Forest", "Logistic Regression", "SVM"),
+  Accuracy = c(rf_conf_matrix$overall["Accuracy"], lr_conf_matrix$overall["Accuracy"], svm_conf_matrix$overall["Accuracy"]),
+  AUC_ROC = c(auc(rf_roc_obj), auc(lr_roc_obj), auc(svm_roc_obj)),
+  Sensitivity = c(rf_conf_matrix$byClass["Sensitivity"], lr_conf_matrix$byClass["Sensitivity"], svm_conf_matrix$byClass["Sensitivity"]),
+  Specificity = c(rf_conf_matrix$byClass["Specificity"], lr_conf_matrix$byClass["Specificity"], svm_conf_matrix$byClass["Specificity"])
+)
+cat("\nModel Comparison:\n")
+print(results)
+
+```
+
