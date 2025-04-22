@@ -405,6 +405,21 @@ print(lr_train_conf_matrix)
 
 ```
 
+We have a 75% ROC, which indicates a moderate to good ability to distinguish between high and low infection rates. 
+
+The sensitivity is better than Random Forest's, coming in at 65%. Specificity is also better than random forests coming in at 71%. This improves performance in identifying high infection rate counties. 
+
+The standard deviations (ROCD, SensSD, SpecSD) is lower than random forests, which indicates less variability between the 5 cross folds. 
+
+The accuracy is 66% which is lower than Random Forests accuracy. This means that logistic regression generalizes less effectively in this case. 
+
+8 low counties were misclassified as high. 6 high counties were misclassified as low. The error rate per class was 38% for the low class (8/21) and 28% for the high class (6/21). 
+
+Logistic regression performs worse for the low class, but matches random forest for the high class. 
+
+Logistic regression has worse generalization than random forest, but has less over-fitting with a close alignment between its training (0.7135) and test accuracies (0.6667). 
+
+
 ```{r}
 
 # Model 3: SVM with Radial Kernel
@@ -434,17 +449,15 @@ cat("\nSVM Training Confusion Matrix:\n")
 print(svm_train_conf_matrix)
 ```
 
-```{r}
-# Step 4: Compare Models
-results <- data.frame(
-  Model = c("Random Forest", "Logistic Regression", "SVM"),
-  Accuracy = c(rf_conf_matrix$overall["Accuracy"], lr_conf_matrix$overall["Accuracy"], svm_conf_matrix$overall["Accuracy"]),
-  AUC_ROC = c(auc(rf_roc_obj), auc(lr_roc_obj), auc(svm_roc_obj)),
-  Sensitivity = c(rf_conf_matrix$byClass["Sensitivity"], lr_conf_matrix$byClass["Sensitivity"], svm_conf_matrix$byClass["Sensitivity"]),
-  Specificity = c(rf_conf_matrix$byClass["Specificity"], lr_conf_matrix$byClass["Specificity"], svm_conf_matrix$byClass["Specificity"])
-)
-cat("\nModel Comparison:\n")
-print(results)
+The Cross validation ROC is the highest of the three models, coming in at about 0.763. The sensitivity is about 72%. This sensitivity value shows the proportion of low cases correctly identified and this value is higher than both random forest and logistic regression. 
 
-```
+The specificity is the amount of high cases correctly identified. This comes in at about 69%, which is comparable to random forest (66%) and slightly lower than logistic regression (70%).
+
+We have moderate variablity across folds with standard deviations (ROCSD, SensSD, SpecSD) of 0.064, 0.105, and 0.1134. The ROCSD is similar to random forest (0.0656), but higher than logistic regression (0.047). SensSD and SpecSD are lower than logistic regression, which suggests more stable class specific performance despite the small fold size. 
+
+There is poor predictive power on the test set, coming in at 52%. This is not better than random guessing. SVM generalizes the least effectively in this case. 
+
+Having the best ROC score means that SVM is the best model to use if there are lots of non-linear relationships involved in the data. 
+ 
+
 
