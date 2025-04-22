@@ -236,8 +236,10 @@ library(caret)
 library(randomForest)
 library(pROC)
 
-# Read the dataset (update path as needed)
-dataset <- read.csv("tx_data_with_gr.csv", stringsAsFactors = FALSE)
+```
+
+```{r} 
+# Dataset loading and verification 
 
 # Step 1: Verify dataset structure
 cat("\nColumn names in dataset:\n")
@@ -253,6 +255,9 @@ if (!all(c("infection_rate", "death_rate", "median_age", "median_income", "total
   stop("Required columns (infection_rate, death_rate, median_age, median_income, total_pop) not found in dataset.")
 }
 
+```
+
+```{r}
 # Step 2: Data Preparation
 # Create class attributes and ensure they are factors
 dataset <- dataset %>%
@@ -268,6 +273,7 @@ cat("\nClass distribution:\n")
 print(table(dataset$Infection_Rate_Class))
 
 # Select features and class attribute (focusing on Infection_Rate_Class)
+# Exclude infection rate to prevent data leakage 
 model_data <- dataset %>%
   select(median_age, median_income, total_pop, Infection_Rate_Class)
 
@@ -303,6 +309,11 @@ print(table(train_data$Infection_Rate_Class))
 cat("\nTesting Set Class Distribution:\n")
 print(table(test_data$Infection_Rate_Class))
 
+```
+
+
+```{r}
+
 # Step 3: Training and Testing
 # Train Random Forest model
 rf_model <- randomForest(Infection_Rate_Class ~ median_age + median_income + total_pop,
@@ -322,6 +333,10 @@ roc_obj <- roc(test_data$Infection_Rate_Class, prob_predictions)
 cat("\nAUC-ROC:\n")
 print(auc(roc_obj))
 
+
+```
+
+```{r}
 # Step 4: Hyperparameter Tuning
 # Define hyperparameter grid (only mtry for caret's rf method)
 tune_grid <- expand.grid(mtry = c(1, 2, 3))
@@ -370,4 +385,6 @@ print(auc(best_roc_obj))
 
 # Save the prepared data (optional, for reference)
 # write.csv(model_data, "tx_data_prepared.csv", row.names = FALSE)
+
+
 ```
