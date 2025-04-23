@@ -373,6 +373,21 @@ Specificity is the proportion of high cases correctly identified. About 66% is m
 
 The standard deviations (ROCSD, SensSD, SpecSD) show variability across Cross validation folds. mtry 2 has ROCD of 0.0656 which suggests moderate variability in performance. This is most likely from our small dataset of only 171 counties in our training set. 
 
+We can also get the feature importance from the model 
+
+```{r}
+# Extract feature importance from rf_tuned using caret's varImp()
+importance <- varImp(rf_tuned)
+
+# Display the importance scores
+cat("\nRandom Forest Feature Importance:\n")
+print(importance)
+
+# Optionally, plot the feature importance for visualization
+plot(importance, main = "Feature Importance for Random Forest")
+
+```
+This tells us that median_age is the most important feature for predeicting infection rate out of our three predictive features. 
 
 Random Forest may not capture linear relationships as well as linear regression or interactions as well as SVM, so now we can try those. 
 
@@ -421,6 +436,25 @@ Logistic regression has worse generalization than random forest, but has less ov
 
 
 ```{r}
+# Extract and display the coefficients for the Logistic Regression model
+cat("\nLogistic Regression Coefficients:\n")
+print(summary(lr_model$finalModel))
+```
+The intercept is very close to 0 (-0.0061), meaning that when all features are at their mean, the log-odds of being Low vs. High are nearly balanced (close to 0, corresponding to a probability of ~50% for Low). However, the p-value (0.972) indicates this is not significant, so we won’t focus on the intercept for practical insights
+
+
+The p-value (1.47e-07) is highly significant (***), indicating strong evidence that median_age affects the infection rate classification
+
+
+Since a decrease in the odds of Low increases the odds of High, the odds of High increase by a factor of 1/0.312 = 3.205, or 220.5% (3.205 - 1)
+ 
+Counties with older populations (higher median_age) are more likely to have High infection rates. For every standard deviation increase in median_age, the odds of a county being classified as High infection rate increase by 220.5%. This suggests that age is a critical risk factor, possibly because older populations are more vulnerable to severe outcomes or have higher transmission rates due to social or healthcare factors
+
+All the other attributes have a low p value so they are not statistically significant. 
+
+
+
+```{r}
 
 # Model 3: SVM with Radial Kernel
 svm_model <- train(
@@ -449,7 +483,9 @@ cat("\nSVM Training Confusion Matrix:\n")
 print(svm_train_conf_matrix)
 ```
 
-The Cross validation ROC is the highest of the three models, coming in at about 0.763. The sensitivity is about 72%. This sensitivity value shows the proportion of low cases correctly identified and this value is higher than both random forest and logistic regression. 
+The Cross validation ROC is the highest of the three models, coming in at about 0.763.The ROC score (Receiver Operating Characteristic curve) is a representation of a classifier's performance across all possible classification thresholds. The classification thresholds are decision boundaries, or cutoff values, used to assign a predicted probability or score to one of the class labels (Low or High). 
+
+The sensitivity is about 72%. This sensitivity value shows the proportion of low cases correctly identified and this value is higher than both random forest and logistic regression. 
 
 The specificity is the amount of high cases correctly identified. This comes in at about 69%, which is comparable to random forest (66%) and slightly lower than logistic regression (70%).
 
@@ -457,7 +493,49 @@ We have moderate variablity across folds with standard deviations (ROCSD, SensSD
 
 There is poor predictive power on the test set, coming in at 52%. This is not better than random guessing. SVM generalizes the least effectively in this case. 
 
-Having the best ROC score means that SVM is the best model to use if there are lots of non-linear relationships involved in the data. 
+Having the best ROC score means that SVM is the best model to use if there are lots of non-linear relationships involved in the data.
+
+
+
+Permutation importance measures how much a model's performance (Accuracy or AUC-ROC) decrease when a feature's values are randomly changed (permuted). Features that cause a larger drop in performance when permuted are considered more important features. 
+
+```{r}
+# Extract permutation importance using varImp()
+svm_importance <- varImp(svm_model, scale = TRUE)
+
+# Display the importance scores
+cat("\nSVM Permutation Importance:\n")
+print(svm_importance)
+
+# Optionally, plot the feature importance
+plot(svm_importance, main = "Permutation Importance for SVM (Radial Kernel)")
+
+```
+
+We see that median age is the most important features for the SVM model. 
+
+Now lets apply the same models to death rate... 
+
+
+```{r}
+
+
+```
+
+
+### Section 3 -- Evaluation 
+
+Logistic Regression is the most useful for making strategic descions due to its interpretability. Johnson and Johnson can use the coefficients to understand demographic risk factors (e.g., focusing on counties with younger populations if median_age has a negative coefficient), tailoring interventions accordingly.
+
+Random Forest provides some utility through feature importance, but its overfitting (training 1.0 vs. test 0.7143) reduces confidence in its predictions for strategic planning.
+
+SVM is the least useful, as its poor test performance and lack of interpretability make it unsuitable for informing targeted interventions.
+
+
+
+
+
+
  
 
 
