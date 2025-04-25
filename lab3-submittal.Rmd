@@ -562,6 +562,19 @@ print(rf_death_train_conf)
 ```
 
 ```{r}
+# Extract feature importance from rf_tuned_death using caret's varImp()
+importance_death_rf <- varImp(rf_tuned_death)
+
+# Display the importance scores
+cat("\nRandom Forest (Death Rate) Feature Importance:\n")
+print(importance_death_rf)
+
+# Optionally, plot the feature importance
+plot(importance_death_rf, main = "Feature Importance for Random Forest (Death Rate)")
+
+```
+
+```{r}
 # Logistic Regression 
 # Logistic Regression (Death Rate)
 lr_model_death <- train(
@@ -593,6 +606,15 @@ print(lr_death_train_conf)
 
 
 ```{r}
+# Extract and display coefficients for Logistic Regression (Death Rate)
+cat("\nLogistic Regression (Death Rate) Coefficients:\n")
+print(summary(lr_model_death$finalModel))
+
+```
+
+
+
+```{r}
 # SVM 
 svm_model_death <- train(
   Death_Rate_Class ~ median_age + median_income + total_pop,
@@ -620,6 +642,18 @@ cat("\nTraining Confusion Matrix (Death Rate):\n")
 print(svm_death_train_conf)
 
 
+```
+
+```{r}
+# Extract permutation importance using varImp() for SVM (Death Rate)
+svm_importance_death <- varImp(svm_model_death, scale = TRUE)
+
+# Display the importance scores
+cat("\nSVM (Death Rate) Permutation Importance:\n")
+print(svm_importance_death)
+
+# Optionally, plot the feature importance
+plot(svm_importance_death, main = "Permutation Importance for SVM (Radial Kernel, Death Rate)")
 ```
 
 ### Section 3 -- Evaluation 
