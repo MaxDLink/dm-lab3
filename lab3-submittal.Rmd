@@ -486,6 +486,9 @@ svm_train_conf_matrix <- confusionMatrix(svm_train_predictions, train_data$Infec
 cat("\nSVM Training Confusion Matrix:\n")
 print(svm_train_conf_matrix)
 ```
+C closer to 1 indicates that the SVM employed moderate regularization to balance generalization error & overfitting trade off 
+
+The sigma value indicates how much the model places emphasis on individual data points. A lower value means that more emphasis was placed on individual data points instead of broader clusters 
 
 The Cross validation ROC is the highest of the three models, coming in at about 0.763.The ROC score (Receiver Operating Characteristic curve) is a representation of a classifier's performance across all possible classification thresholds. The classification thresholds are decision boundaries, or cutoff values, used to assign a predicted probability or score to one of the class labels (Low or High). 
 
