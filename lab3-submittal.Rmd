@@ -37,6 +37,10 @@ suppressPackageStartupMessages({
   library(ggplot2)    # For visualizations
   library(tidyr)      # For cleaning data
   library(ggrepel)    # For repelling labels in plots
+  library(caret)
+  library(pROC)
+  library(dplyr)
+
 })
 ```
 
@@ -518,18 +522,119 @@ Now lets apply the same models to death rate...
 
 
 ```{r}
+# Random Forest 
+# Step 3: Train and Assess Random Forest (Death Rate)
+set.seed(123)
+rf_tuned_death <- train(
+  Death_Rate_Class ~ median_age + median_income + total_pop,
+  data = train_data %>% mutate(Death_Rate_Class = dataset$Death_Rate_Class[train_index]),
+  method = "rf",
+  trControl = ctrl,
+  tuneGrid = expand.grid(mtry = c(1, 2, 3)),
+  metric = "ROC",
+  ntree = 500
+)
 
+# Extract best model
+best_rf_death <- rf_tuned_death$finalModel
+
+# Cross-Validation Performance
+cat("\nRandom Forest (Death Rate) Cross-Validation Results:\n")
+print(rf_tuned_death$results)
+
+# Test Set Performance
+test_data_death <- test_data %>% mutate(Death_Rate_Class = dataset$Death_Rate_Class[-train_index])
+rf_death_preds <- predict(best_rf_death, test_data)
+rf_death_probs <- predict(best_rf_death, test_data, type = "prob")[, "High"]
+rf_death_conf <- confusionMatrix(rf_death_preds, test_data_death$Death_Rate_Class)
+rf_death_roc <- roc(test_data_death$Death_Rate_Class, rf_death_probs)
+cat("\nRandom Forest (Death Rate) Test Confusion Matrix:\n")
+print(rf_death_conf)
+cat("AUC-ROC:\n")
+print(auc(rf_death_roc))
+
+# Training Performance
+train_data_death <- train_data %>% mutate(Death_Rate_Class = dataset$Death_Rate_Class[train_index])
+rf_death_train_preds <- predict(best_rf_death, train_data)
+rf_death_train_conf <- confusionMatrix(rf_death_train_preds, train_data_death$Death_Rate_Class)
+cat("\nTraining Confusion Matrix (Death Rate):\n")
+print(rf_death_train_conf)
+```
+
+```{r}
+# Logistic Regression 
+# Logistic Regression (Death Rate)
+lr_model_death <- train(
+  Death_Rate_Class ~ median_age + median_income + total_pop,
+  data = train_data_death,
+  method = "glm",
+  family = "binomial",
+  trControl = ctrl,
+  metric = "ROC"
+)
+lr_death_preds <- predict(lr_model_death, test_data)
+lr_death_probs <- predict(lr_model_death, test_data, type = "prob")[, "High"]
+lr_death_conf <- confusionMatrix(lr_death_preds, test_data_death$Death_Rate_Class)
+lr_death_roc <- roc(test_data_death$Death_Rate_Class, lr_death_probs)
+cat("\nLogistic Regression (Death Rate) Confusion Matrix:\n")
+print(lr_death_conf)
+cat("AUC-ROC:\n")
+print(auc(lr_death_roc))
+cat("\nLogistic Regression CV Results:\n")
+print(lr_model_death$results)
+
+# Training Performance
+lr_death_train_preds <- predict(lr_model_death, train_data)
+lr_death_train_conf <- confusionMatrix(lr_death_train_preds, train_data_death$Death_Rate_Class)
+cat("\nTraining Confusion Matrix (Death Rate):\n")
+print(lr_death_train_conf)
 
 ```
 
 
+```{r}
+# SVM 
+svm_model_death <- train(
+  Death_Rate_Class ~ median_age + median_income + total_pop,
+  data = train_data_death,
+  method = "svmRadial",
+  trControl = ctrl,
+  tuneGrid = expand.grid(sigma = c(0.1, 0.5, 1), C = c(0.1, 1, 10)),
+  metric = "ROC"
+)
+svm_death_preds <- predict(svm_model_death, test_data)
+svm_death_probs <- predict(svm_model_death, test_data, type = "prob")[, "High"]
+svm_death_conf <- confusionMatrix(svm_death_preds, test_data_death$Death_Rate_Class)
+svm_death_roc <- roc(test_data_death$Death_Rate_Class, svm_death_probs)
+cat("\nSVM (Death Rate) Confusion Matrix:\n")
+print(svm_death_conf)
+cat("AUC-ROC:\n")
+print(auc(svm_death_roc))
+cat("\nSVM CV Results:\n")
+print(svm_model_death$results)
+
+# Training Performance
+svm_death_train_preds <- predict(svm_model_death, train_data)
+svm_death_train_conf <- confusionMatrix(svm_death_train_preds, train_data_death$Death_Rate_Class)
+cat("\nTraining Confusion Matrix (Death Rate):\n")
+print(svm_death_train_conf)
+
+
+```
+
 ### Section 3 -- Evaluation 
+
+## Infection Rate Evaluation
 
 Logistic Regression is the most useful for making strategic descions due to its interpretability. Johnson and Johnson can use the coefficients to understand demographic risk factors (e.g., focusing on counties with younger populations if median_age has a negative coefficient), tailoring interventions accordingly.
 
 Random Forest provides some utility through feature importance, but its overfitting (training 1.0 vs. test 0.7143) reduces confidence in its predictions for strategic planning.
 
 SVM is the least useful, as its poor test performance and lack of interpretability make it unsuitable for informing targeted interventions.
+
+## Death Rate Evaluation 
+
+....
 
 
 
